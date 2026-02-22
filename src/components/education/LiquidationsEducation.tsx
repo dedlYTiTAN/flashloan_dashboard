@@ -25,17 +25,37 @@ export function LiquidationsEducation() {
 
     useEffect(() => {
         let mounted = true;
-        const provider = new ethers.JsonRpcProvider("https://cloudflare-eth.com", 1, { staticNetwork: true });
-        const contract = new ethers.Contract(AAVE_DATA_PROVIDER, AAVE_ABI, provider);
+
+        const rpcs = [
+            "https://ethereum-rpc.publicnode.com",
+            "https://1rpc.io/eth",
+            "https://rpc.ankr.com/eth"
+        ];
 
         const fetchAave = async () => {
             if (!mounted) return;
             try {
-                const [weth, usdc, wbtc] = await Promise.all([
-                    contract.getReserveData(ASSETS.WETH),
-                    contract.getReserveData(ASSETS.USDC),
-                    contract.getReserveData(ASSETS.WBTC)
-                ]);
+                let weth, usdc, wbtc;
+                let success = false;
+
+                for (const url of rpcs) {
+                    try {
+                        const provider = new ethers.JsonRpcProvider(url, 1, { staticNetwork: true });
+                        const contract = new ethers.Contract(AAVE_DATA_PROVIDER, AAVE_ABI, provider);
+
+                        [weth, usdc, wbtc] = await Promise.all([
+                            contract.getReserveData(ASSETS.WETH),
+                            contract.getReserveData(ASSETS.USDC),
+                            contract.getReserveData(ASSETS.WBTC)
+                        ]);
+                        success = true;
+                        break;
+                    } catch (e) {
+                        console.warn(`Aave RPC ${url} failed, trying next...`);
+                    }
+                }
+
+                if (!success) throw new Error("All Aave RPCs failed");
 
                 if (!mounted) return;
 
